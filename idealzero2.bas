@@ -1,6 +1,5 @@
 
-rem This program was written in SmallBASIC (http://smallbasic.sourceforge.net/) and has been run on Windows, assorted Android versions, 
-rem  and Linux.
+
 
 
 cls
@@ -60,11 +59,11 @@ cls
 locate 1, 0
 print "Muzzle velocity "; mvel; "fps bc "; bc; " sight height "; sightHt; "in target diameter "; diameter; "in dispersion "; dispersion; "moa"
 
-
+rem arrays to store trajecory data; trajectory is center, tMax is max possible height, tMin is min possible height
+rem  This forms a bent cone of possible locations of the projectile
 dim trajectory(int(maxRange))
 dim tMax(int(maxRange))
 dim tMin(int(maxRange))
-
  
 rem apply fudge factors to ballistic coefficient, so drag can be calculated
 superbc = superfudge * bc
@@ -85,6 +84,9 @@ next t
 rem back off that last dt, since we exceeded the max height
 maxvvel = vvel * 2
 
+rem The calculated height is only an approximation; actual elevation will be less, due to dispersion.
+rem This is the step size for adjusting the vertical velocity (and thus the elevation) downwards as
+rem  we iterate through to find the ideal elevation.
 vvelStep = 0.5
 
 while maxvvel >= 0
@@ -111,18 +113,19 @@ while maxvvel >= 0
   drop = sightHt / 12
   dist = 0
  
-  rem set up check flags
+  rem horizontal interval at which we store trajectory information (in yards)
   check = 10  
+  rem Set up flags to denote what state the projectile is in
   minimum = 0
   maximum = 0
   zero = 0
   nearZero = 0
  
-rem  print "Initial velocity components "; cint(hvel); "f/s horizontal, "; cint(vvel * 100) / 100; "f/s vertical."
-rem  print
- 
+  rem go for up to two and a half seconds, calculating the flight of the projectile
   FOR t = 0 TO 2.5 STEP dt
     
+    rem start by storing the distance for each foot (it's OK that we overwrite a bunch, 
+    rem  we do NOT want to skip any or it will mess up the chart)
     trajectory(int(dist)) = -drop * 12
     tMax(int(dist)) = (-drop + dispRange) * 12
     tMin(int(dist)) = (-drop - dispRange) * 12
@@ -150,24 +153,21 @@ rem  print
       rem  if vvel is greater than zero, we're falling, so calculate zero and max range
       if vvel > 0 then
         if drop > 0 and zero <= 0 then
-          rem  stop updating as it drops past line of sight
+          rem  far zero, where the projectile crosses the line of sight going down
           zero = dist  
-rem          print "--> Zero range at "; cint(zero / 3); "yds"
         end if
         rem  stop updating when it drops below target radius; drop is in feet
         if drop > radius / 12 and maximum <= 0 then
           maximum = dist
-rem          print "--> Maximum range at "; cint(dist / 3); "yds"
         end if
       else  
         rem  if vvel is less than zero, we're going up so calculate minimum range
         if drop < radius / 12 and minimum <= 0 then
           minimum = dist
-rem          print "--> Minimum range at "; cint(dist / 3); "yds"
         end if
         if drop < 0 and nearZero <= 0 then
+          rem near zero--where the projectile crosses line of sight going up
           nearZero = dist
-rem          print "--> Minimum range at "; cint(dist / 3); "yds"
         end if
       end if
     end if
@@ -183,7 +183,7 @@ rem          print "--> Minimum range at "; cint(dist / 3); "yds"
     rem convert to feet to match drop
     dispRange = dispRange / 12
 
-    rem if we're too high, then we need to lower the trajectory
+    rem if we're too high, then we need to lower the trajectory and restart 
     if -drop + dispRange > radius / 12 then
       print "Possible path too high at distance "; cint(dist / 3); "yds"
       t = 100
@@ -198,15 +198,11 @@ rem          print "--> Minimum range at "; cint(dist / 3); "yds"
       if vvelStep > 0.01 then
         maxvvel = maxvvel + vvelStep * 2
         vvelStep = vvelStep / 2
-rem        DrawTrajectories dist
         print "Adjusting step size down to "; vvelStep; " resetting velocity to "; maxvvel
-rem        input blah
         cls
       else
         maxvvel = -1
         maximum = dist
-rem        DrawTrajectories dist
-rem        input blah
         cls
       endif
     end if
@@ -271,6 +267,9 @@ sub DrawTrajectories(dist) - 1
   next i
   
   line 0, 0, dist, 0, 12
+  
+  line 0, radius * 100, dist, radius * 100, 10
+  line 0, -radius * 100, dist, -radius * 100, 10
   
   for i = 1 to int(dist) - 1
     line i - 1, trajectory(i - 1) * 100, i, trajectory(i) * 100
