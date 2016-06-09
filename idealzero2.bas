@@ -1,5 +1,6 @@
 
-
+rem This program was written in SmallBASIC (http://smallbasic.sourceforge.net/) and has been run on Windows, assorted Android versions, 
+rem  and Linux.
 
 
 cls
