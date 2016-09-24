@@ -224,6 +224,7 @@ cls
 DrawTrajectories dist
 
 locate 1, 0
+input "Enter to continue"; blah
 
 print "Muzzle velocity "; mvel; "fps bc "; bc; " sight height "; sightHt; "in target diameter "; diameter; "in dispersion "; dispersion; "moa"
 print " Maximum point blank range "; cint(maximum / 3); "yds, minimum range "; cint(minimum / 3); "yds"
@@ -233,7 +234,7 @@ rem  calculate where bore line (slope times distance minus sight height) crosses
 BSdist = (sightHt / 12) / slope
 print " Bore sighting distance "; cint(10 * BSdist / 3) / 10; "yds"
 
-open "/tmp/ballistic_chart.txt" for output as #1
+open "ballistic_chart.txt" for output as #1
 
 print #1; "Optimum zero trajectory chart"
 print #1; "Muzzle velocity "; mvel; "fps, ballistc coefficient "; bc; ", sight height "; sightHt; "in "
