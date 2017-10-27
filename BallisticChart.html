@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+	<body>
+
+	<h1>Ballistic Chart</h1>
+	<p>This is a ballistic simulation to calculate the probable trajectory of a cartridge from the muzzle out to the 
+	maximum accurate range.  The first step should be to calculate the elevation that gives the maximum point blank 
+	range, or MPBR, using the <a href="IdealZero.html">Ideal Zero</a> calculator.  This will provide an elevation in
+	minutes of arc, which can then be used, along with the same ballistic information, to calculate the trajectory
+	of the cartridge out to the range where a hit becomes unlikely.  For ranges under the MBPR, no adjustment is
+	needed, and the target can be engaged by aiming at its center.  For ranges beyond the MPBR, adjust the sights or
+	hold over the target by the given elevation (in the second column of the table).</p>
+
+	 <table>
+	<tr><td>Muzzle velocity (feet per second):</td><td><input type="number" id="mvel" value="2600"></td></tr>
+	<tr><td>Ballistic coefficient:</td><td><input type="number" id="bc" value="0.45"></td></tr>
+	<tr><td>Sight height (inches above center of bore):</td><td><input type="number" id="sightHt" value="2.5"></td></tr>
+	<tr><td>Target diameter (inches):</td><td><input type="number" id="targetDia" value="12"></td></tr>
+	<tr><td>Dispersion (group size in MOA):</td><td><input type="number" id="dispersion" value="1"></td></tr>
+	<tr><td>Elevation (in MOA):</td><td><input type="number" id="elevation" value="6.5"></td></tr>
+	 </table>
+
+	 <button type="button" onclick="document.getElementById('status').innerHTML = RunBallistics();">Click to run.</button>
+
+	 <p id="status">Ready</p>
+
+	<table border="1">
+		<tr><td>
+	 			<textarea id="outputTextArea" rows="30" cols="60">Output will show here.</textarea>
+		</td><td>
+			<canvas id="drawArea" width="750" height="500">Drawing area</canvas>	
+		</td></tr>
+	</table>
+
+	<script>
+	function RunBallistics()
+	{
+		document.getElementById("status").innerHTML = "Running...";
+
+		var outputDoc = document.getElementById("outputTextArea");
+		outputDoc.innerHTML += "Running ballistics.\n";
+
+		// get the parameters needed to calculate the bullet trajectory
+		var mvel = document.getElementById("mvel").value;
+		var bc = document.getElementById("bc").value;
+		var sightHt = document.getElementById("sightHt").value;
+		var diameter = document.getElementById("targetDia").value;
+		var dispersion = document.getElementById("dispersion").value;
+		var moa = document.getElementById("elevation").value;
+		
+		// calculate elevation in radians from MOA
+		var elev = moa / (180 * 60) * 3.14;
+
+		// delta time, the interval at which the bullet motion is calcuated
+		var dt = 0.1 / mvel;	// 10 calculationis per foot
+
+		// the "fudge factors" for supersonic and subsonic flight
+		// these numbers are to fit a G1 drag model
+		var superfudge = 7900 / dt;
+		var subfudge = 18000 / dt;
+
+		//	convert from diameter to radius
+		var radius = diameter / 2;
+
+		// calculate range where dispersion equals target size
+		// 1" = 1 moa * 95.5 yards, convert to feet
+		var maxRange = 5000;
+		if(dispersion > 0.1)
+		{
+			maxRange = Math.round((diameter / dispersion) * 95.5 * 3 + 1);
+		}
+
+		outputDoc.innerHTML += "Maximum accurate range is " + Math.round(maxRange / 3) + " yards.\n";
+
+		// arrays to store trajecory data; trajectory is center, tMax is max possible height, tMin is min possible height
+		//	This forms a bent cone of possible locations of the projectile
+		var trajectory = new Array();
+		var tMax = new Array();
+		var tMin = new Array();
+		var velocities = new Array();
+
+		trajectory.length = maxRange;
+		tMax.length = maxRange;
+		tMin.length = maxRange;
+		velocities.length = maxRange;
+
+		outputDoc.innerHTML += ".";
+
+		// apply fudge factors to ballistic coefficient, so drag can be calculated
+		var superbc = superfudge * bc;
+		var subbc = subfudge * bc;
+		 
+		//	calculate the vertical velocity needed to reach the peak height by calculating
+		//	 the velocity after dropping that distance
+		// maxHt is the maximum vertical travel allowed to fit the arc
+		var maxHt = (radius + sightHt) / 12;
+		var vvel = 0;
+		var t;
+		var drop = 0;
+
+		outputDoc.innerHTML = "Running simulation at " + Math.round(moa * 100) / 100 + " minutes of elevation.\n";
+		 
+		// set up initial position and velocities
+		vvel = -mvel * Math.sin(elev);
+		hvel = mvel * Math.cos(elev);
+		drop = sightHt / 12;
+		var dist = 0;
+		var highest = drop;
+		 
+		// horizontal interval at which we store trajectory information (in yards)
+		var check = 10; 
+		// Set up flags to denote what state the projectile is in
+		var minimum = 0;
+		var mpbr = 0;
+		var nearZero = 0;
+		var farZero = 0;
+		 
+		// go for up to two and a half seconds, calculating the flight of the projectile
+		for(t = 0; t < 2.5; t = t + dt)
+		{
+    	// calculate dispersion, divide by 2 for radius
+      var dispRange = dispersion * (dist / 3) / 95.5 / 2;
+      // convert to feet to match drop
+      dispRange = dispRange / 12;
+
+			// start by storing the distance for each foot (it's OK that we overwrite a bunch,
+			//	we do NOT want to skip any or it will mess up the chart)
+			trajectory[Math.round(dist)] = -drop * 12;
+			tMax[Math.round(dist)] = (-drop + dispRange) * 12;
+			tMin[Math.round(dist)] = (-drop - dispRange) * 12;
+			velocities[Math.round(dist)] = hvel;
+			 
+			// add acceleration due to gravity, 32.2 f/s^2
+			vvel = vvel + 32.2 * dt;
+			 
+			//	account for drag, supersonic or subsonic; speed of sound is about 1125 fps
+			if(hvel > 1125)
+				hvel = hvel - (hvel * hvel) / superbc;
+			else
+				hvel = hvel - (hvel * hvel) / subbc;
+			 
+			// just in case there's significant vertical velocity, add some drag there, too;
+			//	 it will never will be supersonic because terminal velocity is lower than that
+			vvel = vvel - (vvel * vvel) / subbc;
+			 
+			// update bullet position
+			drop = drop + vvel * dt;
+			dist = dist + hvel * dt;
+
+			if(drop < highest) highest = drop;
+		 
+			//	calculate near and far zeros, mpbr
+			if(mpbr == 0)
+			{
+				//	if vvel is greater than zero, we're falling, so calculate zero and max range
+				if(vvel > 0)
+				{
+					if((drop > 0) && (farZero <= 0))
+					{
+						//	far zero, where the projectile crosses the line of sight going down
+						outputDoc.innerHTML += "Far zero at " + Math.round(dist / 3) + "yds.\n";
+						farZero = dist;
+					}
+					//	stop updating mpbr stuff when trajectory plue error drops below target radius; drop is in feet
+					if(drop + dispRange > radius / 12)
+					{
+						outputDoc.innerHTML += "Maximum range for zero holdover is " + Math.round(dist / 3) + "yds.\n";
+						outputDoc.innerHTML += "Drop is " + Math.round(drop * 120) / 10 + "in, ";
+						outputDoc.innerHTML += "dispersion is " + Math.round(dispRange * 120) / 10 + "in\n";
+						mpbr = dist;
+					}
+				}
+				else 
+				{
+					//	if vvel is less than zero, we're going up so calculate minimum range
+					if((drop < radius / 12) && (minimum <= 0))
+					{
+						outputDoc.innerHTML += "Minimum range at " + Math.round(dist / 3) + "yds.\n";
+						minimum = dist;
+					}
+					if((drop < 0) && (nearZero <= 0))
+					{
+						outputDoc.innerHTML += "Near zero at " + Math.round(dist / 3) + "yds.\n";
+						nearZero = dist;
+					}
+				}
+			}
+			 
+			// check for terminating conditions
+			if(dist > maxRange) t = 100;
+		}
+		
+		outputDoc.innerHTML += "Simulation terminated at maximum accurate range " + Math.round(dist / 3) + "yds.\n";
+
+		var results = "Finished.	Zero at " + Math.round(nearZero / 3) + " drop at " +
+						Math.round(maxRange / 3) + "yds is " + Math.round(drop * 12) + "in\n";
+
+		outputDoc.innerHTML += "\n\nTrajectory chart\n";
+		outputDoc.innerHTML += "Muzzle velocity " + Math.round(mvel) + " fps BC " + bc + " sight height " + sightHt + " in\n";
+		outputDoc.innerHTML += "Target diameter " + diameter + " in dispersion " + dispersion + " moa\n";
+		outputDoc.innerHTML += "\n";
+		outputDoc.innerHTML += "Near zero " + Math.round(nearZero / 3) + " yds, far zero " + 
+			Math.round(farZero / 3) + " yds, elevation " + Math.round(moa * 100) / 100 + " moa\n";
+		outputDoc.innerHTML += "Maximum point blank range " + Math.round(mpbr / 3) + "yds\n";
+		outputDoc.innerHTML += "\n";
+		outputDoc.innerHTML += "Range\tSize\tDrop\tHold\tHold\tEnergy\n";
+		outputDoc.innerHTML += "(yds)\t(in)\t(in)\t(moa)\t(mil)\t(%)\n";
+		for(r = 0; r < maxRange - 1; r += 25 * 3)
+		{
+			outputDoc.innerHTML += r / 3 + "\t";
+			outputDoc.innerHTML += Math.round(10 * dispersion * (r / 3) / 95.5) / 10 + "\t";
+			outputDoc.innerHTML += Math.round(-trajectory[r]) + "\t";
+
+			var angle = 0;
+			if(r > mpbr)
+			{
+				// drop is in inches, r in feet, get angle in MOA
+				angle = -trajectory[r] / (r * 12.0); 	// approximately the angle in radians
+				angle = angle * 180 / 3.14 * 60;	// radians to degrees, then to minutes
+			}
+			if(angle > 0) 
+			{
+				outputDoc.innerHTML += Math.round(angle) + "\t";
+				outputDoc.innerHTML += Math.round(10 * angle / 3.44) / 10 + "\t";
+			}
+			else
+			{
+				outputDoc.innerHTML += "  \t  \t";
+			}
+			outputDoc.innerHTML += Math.round(100 * (velocities[r] * velocities[r]) / (mvel * mvel)) + "\n";
+
+			// bail out f elevation gets impractical
+			if(angle > 150) break;
+		}
+	
+		var outputCanvas = document.getElementById("drawArea");
+		var gc = outputCanvas.getContext("2d");
+		gc.fillStyle = "white";
+		gc.fillRect(0, 0, 750, 500);
+	
+		// find vertical range
+		var yRange = drop * 12;
+		if(sightHt > yRange) yRange = sightHt;
+		if(highest * -12 > yRange) yRange = highest * -12;
+	
+		// fill probable path cone
+		gc.strokeStyle = "black";
+		gc.fillStyle = "red";
+		gc.beginPath();
+		// start at zero
+		gc.moveTo(0, 250 - trajectory[0] * 500 / (yRange * 2));
+		// draw top line
+		for(r = 1; r < dist - 1; r++) gc.lineTo(r * 750 / dist, 250 - tMax[r] * 500 / (yRange * 2));
+		// draw bottom line back to origin
+		for(; r > 0; r--) gc.lineTo(r * 750 / dist, 250 - tMin[r] * 500 / (yRange * 2));
+		// close and fill
+		gc.closePath();
+		gc.fill();
+	
+		// draw ideal trajectory
+		gc.strokeStyle = "black";
+		gc.moveTo(0, 250 - trajectory[0] * 500 / (yRange * 2));
+		for(r = 1; r < dist - 1; r++) gc.lineTo(r * 750 / dist, 250 - trajectory[r] * 500 / (yRange * 2));
+		gc.stroke();
+	
+		// draw grid, inches vertical 10s of yards horizontal	
+		gc.strokeStyle = "grey";
+		gc.fillStyle = "black";
+		gc.font = "18px TimesNewRoman";
+	
+		// determine vertical grid spacing
+		var step = 1;
+		if(yRange > 10) step = 2;
+		if(yRange > 20) step = 5;
+		if(yRange > 50) step = 10;
+		if(yRange > 100) step = 20;
+		if(yRange > 200) step = 50;
+		if(yRange > 500) step = 100;
+	
+		gc.fillText("Rise/drop in inches", 10, 18);
+		for(r = 0; r < yRange; r += step)
+		{
+			gc.moveTo(0, 250 + r * 250 / yRange);
+			gc.lineTo(750, 250 + r * 250 / yRange);
+			gc.stroke();
+			gc.moveTo(0, 250 - r * 250 / yRange);
+			gc.lineTo(750, 250 - r * 250 / yRange);
+			gc.stroke();
+			// mark elevation in inches; only do 1 at 0
+			if(r > 0)
+			{
+				gc.fillText(-r, 10, 250 + r * 250 / yRange);
+				gc.fillText(r, 10, 250 - r * 250 / yRange);
+			}
+			else
+				gc.fillText(r, 10, 250);
+		}
+	
+		// determine horizontal grid spacing
+		step = 30;
+		if(dist > 450) step = 60;
+		if(dist > 900) step = 120;
+		if(dist > 3000) step = 300;
+	
+		gc.fillText("Range in yards", 10, 495);
+		for(r = 0; r < dist; r += step)
+		{
+			gc.moveTo(r * 750 / dist, 0);
+			gc.lineTo(r * 750 / dist, 500);
+			gc.stroke();
+			// mark range in yards
+			if(r > 0) gc.fillText(r / 3, r * 750 / dist, 480);
+		}
+	
+		return results;
+	}
+
+	</script>
+
+	</body>
+</html>
+
+
