@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+    <body>
+
+    <h1>External ballistics calibration</h1>
+
+       <button type="button" onclick="document.getElementById('status').innerHTML = RunBallistics();">Click to run.</button>
+
+     <p id="status">Ready</p>
+
+    <table border="1">
+        <tr><td>
+               <textarea id="outputTextArea" rows="30" cols="100">Output will show here.</textarea>
+        </td></tr>
+    </table>
+
+    <script src="ExtBal.js" />
+		<script>
+		function RunBallistics()
+		{
+			var outputDoc = document.getElementById("outputTextArea");
+			var trajectory;
+			var velocities;
+		
+		  var mvel = 2600;
+		  var bc = 0.45;
+		  var sightHt = 2.5;
+		  var maxRange = 3 * 1000;
+		  var moa = 6.5;
+		
+			// arrays to store trajecory data; trajectory is center, velocities is velocity at each point
+			//	This forms a bent cone of possible locations of the projectile
+			trajectory = new Array();
+			velocities = new Array();
+		
+			trajectory.length = maxRange + 1;
+			velocities.length = maxRange + 1;
+		
+			RunExtBal(mvel, bc, sightHt, moa, maxRange, trajectory, velocities, 18000, 7900);
+		
+			outputDoc.innerHTML = "Trajectory chart\n";
+			outputDoc.innerHTML += "Muzzle velocity " + Math.round(mvel) + " fps BC " + bc + 
+					" sight height " + sightHt + " in\n";
+			outputDoc.innerHTML += "Elevation " + Math.round(moa * 100) / 100 + " moa\n";
+		
+		  var last = trajectory[0]; 
+		  var nearZero;
+		  var farZero;
+			for(r = 0; r <= maxRange; r++)
+			{
+				if(last > 0 && trajectory[r] <= 0)
+				{
+					nearZero = r;
+					outputDoc.innerHTML += "Near zero at " + Math.round(r / 3) + "yds\n";	
+				}
+		
+				if(last < 0 && trajectory[r] >= 0)
+				{
+					farZero = r;
+					outputDoc.innerHTML += "Far zero at " + Math.round(r / 3) + "yds\n";	
+				}
+		
+				last = trajectory[r];
+			}
+		
+			outputDoc.innerHTML += "Range\tDrop\tHold\tHold\tEnergy\n";
+			outputDoc.innerHTML += "(yds)\t(in)\t(moa)\t(mil)\t(%)\n";
+			for(r = 0; r <= maxRange; r += 25 * 3)
+			{
+				outputDoc.innerHTML += r / 3 + "\t";
+				outputDoc.innerHTML += Math.round(trajectory[r] * 10) / 10 + "\t";
+		
+				var angle = 0;
+				// drop is in inches, r in feet, get angle in MOA
+				if(r > farZero)
+				{
+					angle = trajectory[r] / (r * 12.0); 	// approximately the angle in radians
+					angle = angle * 180 / 3.14 * 60;	// radians to degrees, then to minutes
+		
+					outputDoc.innerHTML += Math.round(angle) + "\t";
+					outputDoc.innerHTML += Math.round(10 * angle / 3.44) / 10 + "\t";
+				}
+				else
+					outputDoc.innerHTML += " \t \t";
+		
+				outputDoc.innerHTML += Math.round(100 * (velocities[r] * velocities[r]) / (mvel * mvel)) + "\n";
+			}
+		}
+		</script>
+
+    </body>
+</html>
