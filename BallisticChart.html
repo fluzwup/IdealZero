@@ -58,6 +58,7 @@
 		// these numbers are to fit a G1 drag model
 		var superfudge = 7900 / dt;
 		var subfudge = 18000 / dt;
+		var dropfudge = 0.87;
 
 		//	convert from diameter to radius
 		var radius = diameter / 2;
@@ -132,19 +133,21 @@
 			 
 			// add acceleration due to gravity, 32.2 f/s^2
 			vvel = vvel + 32.2 * dt;
-			 
-			//	account for drag, supersonic or subsonic; speed of sound is about 1125 fps
+
+	 		//	account for drag, supersonic or subsonic; speed of sound is about 1125 fps
 			if(hvel > 1125)
+			{
 				hvel = hvel - (hvel * hvel) / superbc;
+				vvel = vvel - (vvel * vvel) / superbc;
+			}
 			else
+			{
 				hvel = hvel - (hvel * hvel) / subbc;
+				vvel = vvel - (vvel * vvel) / subbc;
+			} 
 			 
-			// just in case there's significant vertical velocity, add some drag there, too;
-			//	 it will never will be supersonic because terminal velocity is lower than that
-			vvel = vvel - (vvel * vvel) / subbc;
-			 
-			// update bullet position
-			drop = drop + vvel * dt;
+			// update bullet position; here is where the drop factors in
+			drop = drop + vvel * dt * dropfudge;
 			dist = dist + hvel * dt;
 
 			if(drop < highest) highest = drop;
@@ -209,7 +212,7 @@
 		{
 			outputDoc.innerHTML += r / 3 + "\t";
 			outputDoc.innerHTML += Math.round(10 * dispersion * (r / 3) / 95.5) / 10 + "\t";
-			outputDoc.innerHTML += Math.round(-trajectory[r]) + "\t";
+			outputDoc.innerHTML += Math.round(10 * -trajectory[r]) / 10 + "\t";
 
 			var angle = 0;
 			if(r > mpbr)
