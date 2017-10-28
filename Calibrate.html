@@ -5,13 +5,15 @@
     <h1>External ballistics calibration</h1>
 		<table>
 			<tr><td>Muzzle velocity (feet per second):</td><td><input type="number" id="mvel" value="2600"></td></tr>
-			<tr><td>Ballistic coefficient:</td><td><input type="number" id="bc" value="0.45"></td></tr>
+			<tr><td>Ballistic coefficient:</td><td><input type="number" id="bc" value="0.49"></td></tr>
 			<tr><td>Sight height (inches above center of bore):</td><td><input type="number" id="sightHt" value="1.5"></td></tr>
 			<tr><td>Elevation (in MOA):</td><td><input type="number" id="elevation" value="4.15"></td></tr>
 			<tr><td>Max range (in yards):</td><td><input type="number" id="maxRange" value="500"></td></tr>
 			<tr><td>Subsonic fudge factor:</td><td><input type="number" id="subfudge" value="18000"></td></tr>
 			<tr><td>Supersonic fudge factor:</td><td><input type="number" id="superfudge" value="7900"></td></tr>
 			<tr><td>Vertical drag factor:</td><td><input type="number" id="vfactor" value="0.87"></td></tr>
+			<tr><td>Wind drift factor:</td><td><input type="number" id="wfactor" value="1.9"></td></tr>
+			<tr><td>Crosswind speed (in mph):</td><td><input type="number" id="wspeed" value="10"></td></tr>
 	 </table>
 
 		<button type="button" onclick="document.getElementById('status').innerHTML = RunBallistics();">Click to run.</button>
@@ -28,7 +30,7 @@
 		// inputs are muzzle velocity in feet per second, ballistic coefficient (G1 model),
 		// sight height above bore in inches, and elevation in minutes of arc
 		// outputs are a vector of heights and a vector of velocities at every foot distance
-		function RunExtBal(mvel, bc, sightHt, moa, maxRange, trajectory, velocities, times)
+		function RunExtBal(mvel, bc, sightHt, moa, maxRange, wvel, trajectory, velocities, times, drifts)
 		{
 			// calculate elevation in radians from MOA
 			var elev = moa / (180 * 60) * 3.14;
@@ -41,6 +43,7 @@
 			var superfudge = document.getElementById("superfudge").value / dt;
 			var subfudge = document.getElementById("subfudge").value / dt;
 			var vfactor = document.getElementById("vfactor").value;
+			var wfactor = document.getElementById("wfactor").value;
 		
 			// apply fudge factors to ballistic coefficient, so drag can be calculated
 			var superbc = superfudge * bc;
@@ -48,6 +51,9 @@
 			 
 			var vvel = 0;
 			var drop = 0;
+			// wind drift amount and velocity
+			var drift = 0;
+			var vdrift = 0;
 		
 			// set up initial position and velocities
 			vvel = -mvel * Math.sin(elev);
@@ -70,12 +76,23 @@
 			{
 				// start by storing the distance for each foot (it's OK that we overwrite a bunch,
 				//	we do NOT want to skip any or it will mess up the chart)
-				trajectory[Math.round(dist)] = drop * 12;
+				trajectory[Math.round(dist)] = drop * 12;  // convert to inches for storage
 				velocities[Math.round(dist)] = hvel;
 				times[Math.round(dist)] = t;
+				drifts[Math.round(dist)] = drift * 12;  // convert to inches for storage
 				 
 				// add acceleration due to gravity, 32.2 f/s^2
 				vvel = vvel + 32.2 * dt;
+				
+				// account for wind drift
+				// add current drift amount
+				drift += vdrift * dt;
+				// calculate wind/bullet differential
+				var deltavdrift = wvel - vdrift;
+				// calculate acceleration based on velocity differential
+				var accel = Math.sqrt(deltavdrift) * wfactor;
+				// calculate new drift velocity based on acceleration
+				vdrift += accel * dt;
 				 
 				// account for drag, supersonic or subsonic; speed of sound is about 1125 fps
 				// just in case there's significant vertical velocity, add some drag there, too
@@ -102,14 +119,17 @@
 		function RunBallistics()
 		{
 			var outputDoc = document.getElementById("outputTextArea");
+			// arrays for holding ballistics data
 			var trajectory;
 			var velocities;
 			var times;
+			var drifts;
 		
 			var mvel = document.getElementById("mvel").value;
 			var bc = document.getElementById("bc").value;
 			var sightHt = document.getElementById("sightHt").value;
-			var maxRange = document.getElementById("maxRange").value * 3;
+			var maxRange = document.getElementById("maxRange").value * 3;  // convert from yards to feet
+			var wvel = document.getElementById("wspeed").value * 5280 / 3600;  // convert from mph to fps
 
 			var moa = document.getElementById("elevation").value;
 			document.getElementById("status").innerHTML = moa;
@@ -119,12 +139,14 @@
 			trajectory = new Array();
 			velocities = new Array();
 			times = new Array();
+			drifts = new Array();
 		
 			trajectory.length = maxRange + 1;
 			velocities.length = maxRange + 1;
 			times.length = maxRange + 1;
+			drifts.length = maxRange + 1;
 		
-			RunExtBal(mvel, bc, sightHt, moa, maxRange, trajectory, velocities, times);
+			RunExtBal(mvel, bc, sightHt, moa, maxRange, wvel, trajectory, velocities, times, drifts);
 		
 			outputDoc.innerHTML = "Trajectory chart\n";
 			outputDoc.innerHTML += "Muzzle velocity " + Math.round(mvel) + " fps BC " + bc + 
@@ -151,27 +173,22 @@
 				last = trajectory[r];
 			}
 		
-			outputDoc.innerHTML += "Range\tDrop\tHold \tHold \tTime\tVelocity\n";
-			outputDoc.innerHTML += "(yds)\t(in)\t(moa)\t(mil)\t(ms)\t(fps)   \n";
+			outputDoc.innerHTML += "Range\tDrop\tHold \tTime\tDrift\tWindage\tVelocity\n";
+			outputDoc.innerHTML += "(yds)\t(in)\t(mil)\t(ms)\t(in) \t(mil)  \t(fps)   \n";
 			for(r = 0; r <= maxRange; r += 50 * 3)
 			{
 				outputDoc.innerHTML += r / 3 + "\t";
 				outputDoc.innerHTML += Math.round(trajectory[r] * 10) / 10 + "\t";
 		
 				var angle = 0;
-				// drop is in inches, r in feet, get angle in MOA
-				if(r > farZero)
-				{
-					angle = trajectory[r] / (r * 12.0);		// approximately the angle in radians
-					angle = angle * 180 / 3.14 * 60;	// radians to degrees, then to minutes
-		
-					outputDoc.innerHTML += Math.round(10  * angle) / 10 + "\t";
-					outputDoc.innerHTML += Math.round(10 * angle / 3.44) / 10 + "\t";
-				}
-				else
-					outputDoc.innerHTML += " \t \t";
-		
+				if(r > 0)
+					angle = trajectory[r] / (r * 12.0) * 1000;		// approximately the angle in milliradians
+				outputDoc.innerHTML += Math.round(angle * 10) / 10 + "\t";
 				outputDoc.innerHTML += Math.round(1000 * (times[r])) + "\t";
+				outputDoc.innerHTML += Math.round(drifts[r]) + "\t";
+				if(r > 0)
+					angle = drifts[r] / (r * 12.0) * 1000;		// approximately the angle in milliradians
+				outputDoc.innerHTML += Math.round(10 * angle) / 10 + "\t";
 				outputDoc.innerHTML += Math.round(velocities[r]) + "\n";
 			}
 
