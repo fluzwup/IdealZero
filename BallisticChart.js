@@ -106,7 +106,7 @@
 			// if we've passed another milliradian, then print the range and look for the next milliradian
 			if(mrs > fractionalMils / fractions)
 			{
-				outputDoc.innerHTML += fractionalMils / fractions + "\t" + r / 3 + "\t" + Math.round(1000 * times[r]) + "\n";
+				outputDoc.innerHTML += fractionalMils / fractions + "\t" + Math.round(r / 3) + "\t" + Math.round(1000 * times[r]) + "\n";
 				fractionalMils += 1;
 			}
 		}
