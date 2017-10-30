@@ -49,7 +49,6 @@
 		var nearZero = 0;
 		var farZero = 0;
 		var yRange = 0;
-		var mpbr = 0;
 		for(r = 0; r <= maxRange; r++)
 		{
 			if(Math.abs(trajectory[r]) > yRange) yRange = Math.abs(trajectory[r]);
@@ -65,12 +64,6 @@
 				outputDoc.innerHTML += "Far zero at " + Math.round(r / 3) + "yds\n";	
 			}
 
-			if(r > farZero && mpbr == 0 && trajectory[r] > radius)
-			{
-				mpbr = r;
-				outputDoc.innerHTML += "Maximum point blank range at " + Math.round(r / 3) + "yds\n";	
-			}
-	
 			last = trajectory[r];
 		}
 	
@@ -97,7 +90,7 @@
 		outputDoc.innerHTML += "Hold\tRange\tTime\n";
 		outputDoc.innerHTML += "(mil)\t(yds)\t(ms)\n";
 		// go through the trajectory a yard at a time looking for quarter radian increments in drop
-		var fractions = 1;		// number of divisions per milliradtion; 2 is half mils, 4 is quarter mils
+		var fractions = 2;		// number of divisions per milliradtion; 2 is half mils, 4 is quarter mils
 		var fractionalMils = 1; 	// number of fractions to look for
 		for(r = farZero; r < maxRange; r += 3)
 		{
@@ -126,14 +119,16 @@
 		for(r = 1; r < maxRange - 1; r++) 
 		{
 			// calculate group radius at this range to find highest possible point of impact 
-			tMax = trajectory[r] + r / 3 / 95.5 * radius;
+			var error = (r / 3) / 95.5 * (dispersion / 2);
+			tMax = trajectory[r] + error;
 			gc.lineTo(r * 750 / maxRange, 250 + tMax * 500 / (yRange * 2));
 		}
 		// draw bottom line back to origin
 		for(; r > 0; r--) 
 		{
 			// calculate group radius at this range to find lowest possible point of impact 
-			tMin = trajectory[r] - r / 3 / 95.5 * radius;
+			var error = (r / 3) / 95.5 * (dispersion / 2);
+			tMin = trajectory[r] - error;
 			gc.lineTo(r * 750 / maxRange, 250 + tMin * 500 / (yRange * 2));
 		}
 
@@ -168,7 +163,7 @@
 		gc.stroke();
 	
 		// draw grid, inches vertical 10s of yards horizontal	
-		gc.strokeStyle = "gray";
+		gc.strokeStyle = "black";
 		gc.fillStyle = "black";
 		gc.font = "18px TimesNewRoman";
 	

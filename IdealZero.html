@@ -70,6 +70,7 @@
         // these numbers are to fit a G1 drag model
         var superfudge = 7900 / dt;
         var subfudge = 18000 / dt;
+	var vfactor = 0.87;           // empirically determined value to calculate wind drift
 
         //  convert from diameter to radius
         var radius = diameter / 2;
@@ -184,7 +185,7 @@
             vvel = vvel - (vvel * vvel) / subbc;
            
             // update bullet position
-            drop = drop + vvel * dt;
+            drop = drop + vvel * dt * vfactor;
             dist = dist + hvel * dt;
          
             //  stop calculating MPBR stuff once we drop too low
