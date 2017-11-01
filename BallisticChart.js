@@ -3,17 +3,38 @@
 		document.getElementById("status").innerHTML = "Running...";
 
 		var outputDoc = document.getElementById("outputTextArea");
-		outputDoc.innerHTML += "Running ballistics.\n";
+		outputDoc.innerHTML = "Running ballistics.\n";
 
 		// get the parameters needed to calculate the bullet trajectory
 		var mvel = document.getElementById("mvel").value;
-		var bc = document.getElementById("bc").value;
+		var baseBC = document.getElementById("bc").value;
 		var sightHt = document.getElementById("sightHt").value;
 		var diameter = document.getElementById("targetDia").value;
 		var dispersion = document.getElementById("dispersion").value;
 		var moa = document.getElementById("elevation").value;
 		var wvel = document.getElementById("wind").value * 5280 / 3600; // mph to fps conversion
+		var temp = document.getElementById("temp").value; // degrees F
+		var pres = document.getElementById("pres").value; // inches of mercury
+		var balChartSpacing;
+		if(document.getElementById("yd_25").checked) balChartSpacing = 25; 
+		if(document.getElementById("yd_50").checked) balChartSpacing = 50; 
+		if(document.getElementById("yd_100").checked) balChartSpacing = 100; 
+		var milChartSpacing;
+		if(document.getElementById("mil_1.0").checked) milChartSpacing = 1.0; 
+		if(document.getElementById("mil_0.5").checked) milChartSpacing = 0.5; 
+		if(document.getElementById("mil_0.25").checked) milChartSpacing = 0.25; 
 		
+		outputDoc.innerHTML += "balChartSpacing " + balChartSpacing + " milChartSpacing " + milChartSpacing + "\n";
+
+		// converte to absolute
+		var abstemp = 459 + parseInt(temp);
+		
+		// adust BC from 59F and 29.53"
+		bc = baseBC;
+		bc *= abstemp / 518;
+		bc *= 29.53 / pres;
+		outputDoc.innerHTML += "Corrected ballisic coefficient " + bc + "\n";
+
 		//	convert from diameter to radius
 		var radius = diameter / 2;
 
@@ -38,10 +59,10 @@
 
 		RunExtBal(mvel, bc, sightHt, moa, maxRange, wvel, trajectory, velocities, times, drifts);
 		
-		outputDoc.innerHTML = "Trajectory chart\n";
-		outputDoc.innerHTML += "Muzzle velocity " + Math.round(mvel) + " fps BC " + bc + 
+		outputDoc.innerHTML += "\n\nTrajectory chart for " + temp + " F and " + pres + " in of mercury\n";
+		outputDoc.innerHTML += "Muzzle velocity " + Math.round(mvel) + " fps BC " + baseBC + 
 					" sight height " + sightHt + " in\n";
-		outputDoc.innerHTML += "Maximum accurate range is " + Math.round(maxRange / 3) + " yards.\n";
+		outputDoc.innerHTML += "Maximum range for " + diameter + " in group is at " + Math.round(maxRange / 3) + " yds.\n";
 		outputDoc.innerHTML += "Elevation " + Math.round(moa * 100) / 100 + " moa and crosswind of ";
 		outputDoc.innerHTML += wvel * 3600 / 5280 + " mph\n";
 		
@@ -69,7 +90,7 @@
 	
 		outputDoc.innerHTML += "Range\tDrop\tHold \tTime\tDrift\tWindage\tVelocity\n";
 		outputDoc.innerHTML += "(yds)\t(in)\t(mil)\t(ms)\t(in) \t(mil)  \t(fps)   \n";
-		for(r = 0; r <= maxRange; r += 50 * 3)
+		for(r = 0; r <= maxRange; r += balChartSpacing * 3)
 		{
 			outputDoc.innerHTML += r / 3 + "\t";
 			outputDoc.innerHTML += Math.round(trajectory[r] * 10) / 10 + "\t";
@@ -90,7 +111,7 @@
 		outputDoc.innerHTML += "Hold\tRange\tTime\n";
 		outputDoc.innerHTML += "(mil)\t(yds)\t(ms)\n";
 		// go through the trajectory a yard at a time looking for quarter radian increments in drop
-		var fractions = 2;		// number of divisions per milliradtion; 2 is half mils, 4 is quarter mils
+		var fractions = 1 / milChartSpacing;		// number of divisions per milliradtion; 2 is half mils, 4 is quarter mils
 		var fractionalMils = 1; 	// number of fractions to look for
 		for(r = farZero; r < maxRange; r += 3)
 		{

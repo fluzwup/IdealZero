@@ -3,6 +3,30 @@
 	<body>
 	<script src="ExtBal.js"></script>
 	<script src="BallisticChart.js"></script>
+	<script>
+	function saveTextAsFile()
+	{
+		var textToSave = document.getElementById("outputTextArea").value;
+		var textToSaveAsBlob = new Blob([textToSave], {type:"text/plain"});
+		var textToSaveAsURL = window.URL.createObjectURL(textToSaveAsBlob);
+		var fileNameToSaveAs = document.getElementById("saveAsFilename").value;
+	 
+		var downloadLink = document.createElement("a");
+		downloadLink.download = fileNameToSaveAs;
+		downloadLink.innerHTML = "Download File";
+		downloadLink.href = textToSaveAsURL;
+		downloadLink.onclick = destroyClickedElement;
+		downloadLink.style.display = "none";
+		document.body.appendChild(downloadLink);
+ 
+		downloadLink.click();
+	}
+
+	function destroyClickedElement(event)
+	{
+		document.body.removeChild(event.target);
+	}
+	</script>
 
 	<h1>Ballistic Chart</h1>
 	<p>This is a ballistic simulation to calculate the probable trajectory of a cartridge from the muzzle out to the 
@@ -21,9 +45,23 @@
 		<tr><td>Dispersion (group size in MOA):</td><td><input type="number" id="dispersion" value="1"></td></tr>
 		<tr><td>Elevation (in MOA):</td><td><input type="number" id="elevation" value="6.1"></td></tr>
 		<tr><td>Crosswind (in mph):</td><td><input type="number" id="wind" value="10"></td></tr>
+		<tr><td>Temperature (degrees F):</td><td><input type="number" id="temp" value="59"></td></tr>
+		<tr><td>Barometric pressure (inches):</td><td><input type="number" id="pres" value="29.53"></td></tr>
+		<tr><td>
+			Ballistic chart spacing:<br />
+			<input type="radio" name="yd_interval" id="yd_25"/> 25 yds<br /> 
+			<input type="radio" name="yd_interval" id="yd_50"/> 50 yds<br />
+			<input type="radio" name="yd_interval" id="yd_100" checked/> 100 yds<br />
+		</td><td>
+			Milliradian holdover spacing:<br />
+			<input type="radio" name="mil_interval" id="mil_1.0" checked/> 1.0 mil<br />
+			<input type="radio" name="mil_interval" id="mil_0.5"/> 0.5 mils<br />
+			<input type="radio" name="mil_interval" id="mil_0.25"/> 0.25 mils<br />
+		</td></tr>
 	</table>
 
 	<button type="button" onclick="document.getElementById('status').innerHTML = RunBallistics();">Click to run.</button>
+	<button onclick="saveTextAsFile()">Save as filename:</button> <input id="saveAsFilename"</input>
 
 	<p id="status">Ready</p>
 
