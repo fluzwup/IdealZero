@@ -24,8 +24,6 @@
 		if(document.getElementById("mil_0.5").checked) milChartSpacing = 0.5; 
 		if(document.getElementById("mil_0.25").checked) milChartSpacing = 0.25; 
 		
-		outputDoc.innerHTML += "balChartSpacing " + balChartSpacing + " milChartSpacing " + milChartSpacing + "\n";
-
 		// converte to absolute
 		var abstemp = 459 + parseInt(temp);
 		
