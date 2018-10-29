@@ -110,8 +110,8 @@
 			last = trajectory[r];
 		}
 
-		outputDoc.innerHTML += "Range\tDrop\tHold \tTime\tVelocity\n";
-		outputDoc.innerHTML += "(yds)\t(in)\t(mil)\t(ms)\t(fps)   \n";
+		outputDoc.innerHTML += "Range\tDrop\tHold\tHold\tTime\tVelocity\n";
+		outputDoc.innerHTML += "(yds)\t(in)\t(mil)\t(moa)\t(ms)\t(fps)   \n";
 		for(r = 0; r <= finalRange; r += balChartSpacing * 3)
 		{
 			outputDoc.innerHTML += r / 3 + "\t";
@@ -121,6 +121,8 @@
 			if(r > 0)
 				angle = trajectory[r] / (r * 12.0) * 1000;		// approximately the angle in milliradians
 			outputDoc.innerHTML += Math.round(angle * 10) / 10 + "\t";
+			// 3.43775 minutes per milliradian
+			outputDoc.innerHTML += Math.round(angle * 3.43775 * 10) / 10 + "\t";
 			outputDoc.innerHTML += Math.round(1000 * (times[r])) + "\t";
 			outputDoc.innerHTML += Math.round(velocities[r]) + "\n";
 		}
