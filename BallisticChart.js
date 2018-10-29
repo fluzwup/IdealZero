@@ -23,6 +23,8 @@
 		if(document.getElementById("mil_1.0").checked) milChartSpacing = 1.0; 
 		if(document.getElementById("mil_0.5").checked) milChartSpacing = 0.5; 
 		if(document.getElementById("mil_0.25").checked) milChartSpacing = 0.25; 
+		if(document.getElementById("moa_1").checked) milChartSpacing = -1.0; 
+		if(document.getElementById("moa_5").checked) milChartSpacing = -5.0; 
 		
 		// converte to absolute
 		var abstemp = 459 + parseInt(temp);
@@ -86,8 +88,8 @@
 			last = trajectory[r];
 		}
 	
-		outputDoc.innerHTML += "Range\tDrop\tHold \tTime\tDrift\tWindage\tVelocity\n";
-		outputDoc.innerHTML += "(yds)\t(in)\t(mil)\t(ms)\t(in) \t(mil)  \t(fps)   \n";
+		outputDoc.innerHTML += "Range\tDrop\tHold\tHold\tDrift\tWindage\tVelocity\n";
+		outputDoc.innerHTML += "(yds)\t(in)\t(mil)\t(moa)\t(in) \t(mil)  \t(fps)   \n";
 		for(r = 0; r <= maxRange; r += balChartSpacing * 3)
 		{
 			outputDoc.innerHTML += r / 3 + "\t";
@@ -97,7 +99,7 @@
 			if(r > 0)
 				angle = trajectory[r] / (r * 12.0) * 1000;		// approximately the angle in milliradians
 			outputDoc.innerHTML += Math.round(angle * 10) / 10 + "\t";
-			outputDoc.innerHTML += Math.round(1000 * (times[r])) + "\t";
+			outputDoc.innerHTML += Math.round(10 * 3.43775 * angle) / 10 + "\t";	// convert milliradians to MOA
 			outputDoc.innerHTML += Math.round(drifts[r]) + "\t";
 			if(r > 0)
 				angle = drifts[r] / (r * 12.0) * 1000;		// approximately the angle in milliradians
@@ -105,21 +107,44 @@
 			outputDoc.innerHTML += Math.round(velocities[r]) + "\n";
 		}
 
-		outputDoc.innerHTML += "\n\nMil-dot hold-over range chart\n";
+		outputDoc.innerHTML += "\n\nHold-over range chart\n";
 		outputDoc.innerHTML += "Hold\tRange\tTime\n";
-		outputDoc.innerHTML += "(mil)\t(yds)\t(ms)\n";
-		// go through the trajectory a yard at a time looking for quarter radian increments in drop
-		var fractions = 1 / milChartSpacing;		// number of divisions per milliradtion; 2 is half mils, 4 is quarter mils
-		var fractionalMils = 1; 	// number of fractions to look for
-		for(r = farZero; r < maxRange; r += 3)
+		if(milChartSpacing > 0)
 		{
-			// drop is in inches, r in feet, get angle in MOA
-			mrs = 1000 * trajectory[r] / (r * 12.0); 	// approximately the angle in radians times 1000 to get milliradians
-			// if we've passed another milliradian, then print the range and look for the next milliradian
-			if(mrs > fractionalMils / fractions)
+			outputDoc.innerHTML += "(mil)\t(yds)\t(ms)\n";
+
+			// go through the trajectory a yard at a time looking for quarter radian increments in drop
+			var fractions;
+			fractions = 1 / milChartSpacing;		// number of divisions per milliradtion; 2 is half mils, 4 is quarter mils
+
+			var fractionalMils = 1; 	// number of fractions to look for
+			for(r = farZero; r < maxRange; r += 3)
 			{
-				outputDoc.innerHTML += fractionalMils / fractions + "\t" + Math.round(r / 3) + "\t" + Math.round(1000 * times[r]) + "\n";
-				fractionalMils += 1;
+				// drop is in inches, r in feet, get angle in MOA
+				mrs = 1000 * trajectory[r] / (r * 12.0); 	// approximately the angle in radians times 1000 to get milliradians
+				// if we've passed another milliradian, then print the range and look for the next milliradian
+				if(mrs > fractionalMils / fractions)
+				{
+					outputDoc.innerHTML += fractionalMils / fractions + "\t" + Math.round(r / 3) + "\t" + Math.round(1000 * times[r]) + "\n";
+					fractionalMils += 1;
+				}
+			}
+		}
+		else
+		{
+			outputDoc.innerHTML += "(moa)\t(yds)\t(ms)\n";
+
+			// go through the trajectory a yard at a time looking for MOA increments in drop
+			moa = -milChartSpacing;
+			for(r = farZero; r < maxRange; r += 3)
+			{
+				// drop is in inches, r in feet, get angle in MOA
+				moas = trajectory[r] * 3600 / (r * 12.0) * 0.955; 	// approximately the angle in MOA
+				if(moas > moa)
+				{
+					outputDoc.innerHTML += moa + "\t" + Math.round(r / 3) + "\t" + Math.round(1000 * times[r]) + "\n";
+					moa -= milChartSpacing;
+				}
 			}
 		}
 
