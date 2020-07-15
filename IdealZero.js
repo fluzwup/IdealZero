@@ -84,7 +84,8 @@
 		outputDoc.innerHTML += "Maximum point blank range for " + diameter + " in target is at " + Math.round(finalRange / 3) + " yds.\n";
 		outputDoc.innerHTML += "Elevation " + Math.round(moa * 100) / 100 + " moa\n";
 		radians = moa / 60 / 180 * 3.14;
-		outputDoc.innerHTML += "Laser boresight at " + Math.round(10 * sightHt / radians / 36) / 10 + " yds\n";
+		outputDoc.innerHTML += "Laser boresight at " + Math.round(10 * sightHt / radians / 36) / 10 + " yds, or ";
+		outputDoc.innerHTML += Math.round(100 * (sightHt - radians * 5 * 36)) / 100 + " in low at 5 yards\n";
 		
 		var last = trajectory[0]; 
 		var nearZero = 0;
