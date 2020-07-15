@@ -23,7 +23,7 @@
 		bc = baseBC;
 		bc *= abstemp / 518;
 		bc *= 29.53 / pres;
-		outputDoc.innerHTML += "Corrected ballisic coefficient " + bc + "\n";
+		outputDoc.innerHTML += "Corrected ballistic coefficient " + bc + "\n";
 
 		//	convert from diameter to radius, and inches to feet
 		var radius = diameter / 2 / 12;
